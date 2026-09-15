@@ -1009,7 +1009,7 @@ function __openInFirefox(){ try { window.location.href = 'firefox:' + location.h
 
   <div class="topbar" data-page-node-id="9QpLFKxI3fxSajsOGQCsjg">
 
-    <div class="brand" data-page-node-id="kwZ1Ejom4xywC8WEvmFKSS"><span class="logo" data-page-node-id="CzdFzneQYsqBzHAehgf6b8">B3U1</span> 高考一轮·词汇闯关<span class="ver" style="margin-left:6px;font-size:11px;font-weight:800;color:#fff;background:linear-gradient(135deg,#1aa260,#13a05a);border-radius:999px;padding:2px 9px" data-page-node-id="giFeREjL5t1eoBLLCEphF5">v1.0.0·20260910b3u1</span></div>
+    <div class="brand" data-page-node-id="kwZ1Ejom4xywC8WEvmFKSS"><span class="logo" data-page-node-id="CzdFzneQYsqBzHAehgf6b8">B3U1</span> 高考一轮·词汇闯关<span class="ver" style="margin-left:6px;font-size:11px;font-weight:800;color:#fff;background:linear-gradient(135deg,#1aa260,#13a05a);border-radius:999px;padding:2px 9px" data-page-node-id="giFeREjL5t1eoBLLCEphF5">v1.0.3·20260913b3u1</span></div>
 
     <div class="right" data-page-node-id="FlFVlNaeONofqoPMR0qSUM">
 
@@ -2309,9 +2309,49 @@ function __openInFirefox(){ try { window.location.href = 'firefox:' + location.h
 
 
 
-  function buildSpellWordQuestions(words, opt) {
+    /* P1 补充 20260913：字母盘「可输入性」判据。
 
-    return starFilter(words, opt).map(function (w) {
+
+
+     字母盘只把 target 里的 a-z 拆成按键（letterPadHtml），判分却走 normalizeWord
+
+
+
+     （只去空白、保留 ' . - ( ) …）。故凡去空白后仍含非字母字符的词——
+
+
+
+     in one's view / humo(u)r / Wi-Fi / regard...as / when the cat's away 等——
+
+
+
+     学生把字母盘上所有字母按对也必然判错。此类词一律不进字母盘题。 */
+
+  function padSafe(word) {
+
+    var t = String(word == null ? '' : word).toLowerCase();
+
+    return t.replace(/[^a-z]/g, '') === normalizeWord(t);
+
+  }
+
+  /* P1 补充 20260913：句子挖空/多词短语专用判据。
+
+
+
+     句子挖空判分走 normalizeSentence（保留空格），故含空白的 target 必然答错；
+
+     本判据 = padSafe 且不含空白，是原「空格/撇号/连字符」守卫的严格子集。 */
+
+  function padToken(x) {
+
+    return padSafe(x) && !/\s/.test(String(x == null ? '' : x));
+
+  }
+
+function buildSpellWordQuestions(words, opt) {
+
+    return starFilter(words, opt).filter(function (w) { return padSafe(w.word); }).map(function (w) {
 
       var coreSense = coreSenseOf(w);
 
@@ -2333,7 +2373,7 @@ function __openInFirefox(){ try { window.location.href = 'firefox:' + location.h
 
       var baseInExample = !!ex && new RegExp('\\b' + escapeRegExp(w.word) + '\\b', 'i').test(ex);
 
-      if (baseInExample && !/[\s.'\u2019-]/.test(w.word) && Math.random() < 0.45) {
+      if (baseInExample && padToken(w.word) && Math.random() < 0.45) {
 
         var b = blankWord(ex, w.word);
 
@@ -2369,7 +2409,7 @@ function __openInFirefox(){ try { window.location.href = 'firefox:' + location.h
 
     return (sentences || []).filter(function (s) {
 
-      if (/[\s.''\u2019-]/.test(s.word || '')) return false;  // 跳过短语（字母盘无空格键），交由听音选义处理
+      if (!padToken(s.word || '')) return false;  // 跳过短语（字母盘无空格键），交由听音选义处理
 
       var src = SPELL_WORDS.filter(function (x) { return x.word === s.word; })[0] ||
 
@@ -2417,7 +2457,7 @@ function __openInFirefox(){ try { window.location.href = 'firefox:' + location.h
 
     var all = S.filter(function (s) { return inGroup[s.word]; })
 
-      .filter(function (s) { return !/[\s.''\u2019-]/.test(s.word); })  // 跳过短语（字母盘无空格键）
+      .filter(function (s) { return padToken(s.word); })  // 跳过短语（字母盘无空格键）
 
       .map(function (s) {
 
@@ -2441,7 +2481,7 @@ function __openInFirefox(){ try { window.location.href = 'firefox:' + location.h
 
     }).filter(function (q) { return q.hasBlank === true; });
 
-    shuffle(all);
+    all = shuffle(all);
 
     var n = Math.max(1, Math.round(all.length * 0.4));
 
@@ -2474,7 +2514,7 @@ function __openInFirefox(){ try { window.location.href = 'firefox:' + location.h
   // v4.1 CONFUSE_PAIRS_REAL: 71 词表内真实形近对(自动 levenshtein 检测)
 var CONFUSE_PAIRS_REAL = []; /* v8: 原28组levenshtein凑对已弃用(约20组非真易混)；本行置空由人工30组CONFUSE_PAIRS生效 */ /* v7 弃用：原28组为自动 levenshtein 凑对，约20组非真易混且覆盖人工好配对(assume|issue 顶掉 assume|consume 等)；形近题统一回退人工 CONFUSE_PAIRS(30组，与精讲表形近提示/练习听音干扰项同源) */
 
-  var NEARHOMOGRAPH_PAIRS = [];
+  var NEARHOMOGRAPH_PAIRS = [{"anchor":"steam","foes":["stream","tea"],"prompt":"蒸汽，水蒸气","tip":"同/形：tea n.茶水→steam；stream n.小河（多 r）","srcFoes":["tea","stream"]},{"anchor":"loose","foes":["lose","loss"],"prompt":"说话随便（轻率）的","tip":"形近：lose v.丢失（少一个 o）；loss n.损失","srcFoes":["lose","loss"]},{"anchor":"sink","foes":["ink","link","think"],"prompt":"使（船）沉没","tip":"形近：think v.认为；link v.连接（-ink 家族）","srcFoes":["think","link","ink"]},{"anchor":"strategy","foes":["strategic"],"prompt":"计谋，策略；行动计划","tip":"形近：strategic adj.战略的；strategist n.战略家","srcFoes":["strategic","strategist"]},{"anchor":"signal","foes":["sign"],"prompt":"信号；暗号","tip":"形近：sign n.手势，标志→signal n.信号；design v.设计","srcFoes":["sign","design"]},{"anchor":"breath","foes":["breathe","bath"],"prompt":"呼出的气；一口气","tip":"同源：breathe v.呼吸（多 e，读 /briːð/）；bath n.洗澡 / bathe v.洗澡","srcFoes":["breathe","bri","bath","bathe"]},{"anchor":"concern","foes":["cancer"],"prompt":"忧虑，担心","tip":"形近：cancer n.癌症（助记：他得了 cancer，全家人满怀 concern）","srcFoes":["cancer"]},{"anchor":"duty","foes":["duly","dust"],"prompt":"职责，义务；责任","tip":"形近：duly adv.按时地；dust n.灰尘","srcFoes":["duly","dust"]},{"anchor":"accident","foes":["accidental"],"prompt":"意外事件，偶然因素","tip":"形近：incident n.事件（事故/事变）；accidental adj.偶然的","srcFoes":["incident","accidental"]},{"anchor":"core","foes":["corn","cure"],"prompt":"核心的（课程、团体等）","tip":"形近：cure v.治愈；corn n.玉米","srcFoes":["cure","corn"]},{"anchor":"ensure","foes":["insure","assure"],"prompt":"确保，保证","tip":"形近：insure v.给……保险；assure v.使确信","srcFoes":["insure","assure"]},{"anchor":"justify","foes":["justice"],"prompt":"证明（别人认为不合理的事）有道理；为……辩护","tip":"同源：justice n.公正；justified adj.有正当理由的；justification n.正当理由","srcFoes":["justice","justified","justification"]},{"anchor":"web","foes":["wed"],"prompt":"蜘蛛网，错综复杂的事物","tip":"形近：wed v.结婚；webs n.网（复数）；World Wide Web 万维网","srcFoes":["wed","webs"]},{"anchor":"deceive","foes":["receive","perceive"],"prompt":"欺骗","tip":"形近：receive v.收到；perceive v.察觉；deception n.欺骗","srcFoes":["receive","perceive","deception"]},{"anchor":"latter","foes":["later"],"prompt":"后者","tip":"形近：later adv.后来；latest adj.最新的；lately adv.最近（助记：latter 后者 / later 后来）","srcFoes":["later","latest","lately"]}];
 
 
 
@@ -2536,7 +2576,7 @@ var CONFUSE_PAIRS_REAL = []; /* v8: 原28组levenshtein凑对已弃用(约20组�
   pool.forEach(function (w) {
     if (!w || !w.word) return;
     var lw = String(w.word).toLowerCase();
-    if (/[\s.''\u2019-]/.test(w.word)) return;
+    if (!padToken(w.word)) return;
     var pair = findPair(lw);
     if (!pair) return;
     var pairKey = String(pair.a).toLowerCase() + '\u0001' + String(pair.b).toLowerCase();
@@ -2686,7 +2726,7 @@ var CONFUSE_PAIRS_REAL = []; /* v8: 原28组levenshtein凑对已弃用(约20组�
 
       if (!w || !w.word) return;
 
-      if (/[\s.''\u2019-]/.test(w.word)) return;            // 跳过短语（字母盘无法输入）
+      if (!padToken(w.word)) return;            // 跳过短语（字母盘无法输入）
 
       var lw = String(w.word).toLowerCase();
 
@@ -2736,11 +2776,84 @@ var CONFUSE_PAIRS_REAL = []; /* v8: 原28组levenshtein凑对已弃用(约20组�
 
     hits.forEach(function (h) {
 
-      var take = Math.min(h.foes.length, nWrong);
+      /* P2 修复 20260913：干扰项不足时，按与「形近词·语境辨词」完全相同的规则
+         （本单元词表内 |长度差|≤2 且编辑距离≤2 的真实词）自动补足到 4 选项；
+         并跳过释义与提示含义重合（互相包含）的词，避免出现两个正确答案。 */
+      var wrongs = shuffle(h.foes.slice()).slice(0, 3);
 
-      if (take < 1) return;
+      if (wrongs.length < 3 && typeof levenshtein === 'function') {
 
-      var wrongs = shuffle(h.foes.slice()).slice(0, take);
+        var _seenN = {}; _seenN[String(h.anchor).toLowerCase()] = true;
+
+        wrongs.forEach(function (f) { _seenN[String(f).toLowerCase()] = true; });
+
+        var _hintN = normDef(h.right && h.right.cnDef);
+
+        var _cands = [];
+
+        for (var _kk in dict) if (Object.prototype.hasOwnProperty.call(dict, _kk)) _cands.push(dict[_kk]);
+
+        shuffle(_cands).forEach(function (x) {
+
+          if (wrongs.length >= 3) return;
+
+          if (!x || !x.word) return;
+
+          var xl = String(x.word).toLowerCase();
+
+          if (_seenN[xl]) return;
+
+          var al = String(h.anchor).toLowerCase();
+
+          if (Math.abs(xl.length - al.length) > 2) return;
+
+          if (levenshtein(al, xl) > 2) return;
+
+          var xs = coreSenseOf(x) || (x.senses && x.senses[0]);
+
+          var xn = normDef(xs && xs.cnDef);
+
+          if (_hintN && xn && (_hintN.indexOf(xn) >= 0 || xn.indexOf(_hintN) >= 0)) return;
+
+          _seenN[xl] = true; wrongs.push(x.word);
+
+        });
+
+        /* 兜底：仍不足 3 个干扰项时，放宽拼写相似度（与「语境辨词」的兜底口径一致），
+           但保留「释义不得与提示重合」的守卫，确保不会出现两个正确答案。 */
+        if (wrongs.length < 3) {
+
+          var _cands2 = [];
+
+          for (var _k2 in dict) if (Object.prototype.hasOwnProperty.call(dict, _k2)) _cands2.push(dict[_k2]);
+
+          shuffle(_cands2).forEach(function (x) {
+
+            if (wrongs.length >= 3) return;
+
+            if (!x || !x.word) return;
+
+            var xl2 = String(x.word).toLowerCase();
+
+            if (_seenN[xl2]) return;
+
+            var xs2 = coreSenseOf(x) || (x.senses && x.senses[0]);
+
+            var xn2 = normDef(xs2 && xs2.cnDef);
+
+            if (!xn2) return;
+
+            if (_hintN && (_hintN.indexOf(xn2) >= 0 || xn2.indexOf(_hintN) >= 0)) return;
+
+            _seenN[xl2] = true; wrongs.push(x.word);
+
+          });
+
+        }
+
+      }
+
+      if (wrongs.length < 1) return;
 
       var options = shuffle([{ def: h.anchor, correct: true }]
 
@@ -2749,6 +2862,8 @@ var CONFUSE_PAIRS_REAL = []; /* v8: 原28组levenshtein凑对已弃用(约20组�
       out.push({
 
         type: 'choose', multi: false,
+
+        __nh: true,       /* P2 20260913：标记近形词选词形题（fitQ4 跳过池补全） */
 
         word: h.anchor,                 // 关闭🔊音频：直接朗读会立即泄露答案，使题目失去“辨形”训练价值
 
@@ -2783,6 +2898,19 @@ var CONFUSE_PAIRS_REAL = []; /* v8: 原28组levenshtein凑对已弃用(约20组�
 
 
   /* 把附加题随机插入主队列 */
+
+/* P3 20260913：按题量上限做「等距分层抽样」——保序、保留易→难梯度、保留各题型占比 */
+function capQuestions(list, cap) {
+
+  if (!list || !list.length || list.length <= cap) return list || [];
+
+  var out = [];
+
+  for (var i = 0; i < cap; i++) out.push(list[Math.floor(i * list.length / cap)]);
+
+  return out;
+
+}
 
 function interleave(base, extra) {
 
@@ -2906,7 +3034,7 @@ function interleave(base, extra) {
 
     return starFilter(words, opt).map(function (w) {
 
-      var isPhrase = (w.practiceType === 'choose') || /[\s.'\u2019-]/.test(w.word);
+      var isPhrase = (w.practiceType === 'choose') || !padToken(w.word);   /* P1 补充 20260913：padSafe 覆盖空格/撇号/连字符/括号/省略号等全部不可输入字符 */
 
       var type = isPhrase ? 'choose' : (Math.random() < 0.5 ? 'spell' : 'choose');
 
@@ -3034,7 +3162,7 @@ function interleave(base, extra) {
 
     var ordered = starFilter(reviewWords || [], {});
 
-    var wordQs = ordered.map(function (w) {
+    var wordQs = ordered.filter(function (w) { return padSafe(w.word); }).map(function (w) {
 
       var coreSense = coreSenseOf(w);
 
@@ -3046,7 +3174,7 @@ function interleave(base, extra) {
 
     ordered.forEach(function (w) { reviewSet[w.word.toLowerCase()] = true; });
 
-    var sentenceQs = (SENTENCES || []).filter(function (s) { return reviewSet[s.word.toLowerCase()]; }).map(function (s) {
+    var sentenceQs = (SENTENCES || []).filter(function (s) { return reviewSet[s.word.toLowerCase()]; }).filter(function (s) { return padToken(s.word || ''); })   /* P1 修复 20260913：短语（含空格/撇号/连字符）在字母盘无法完整输入，而句子挖空判分保留空格 → 必然判错，故一律不进句子挖空 */.map(function (s) {
 
       var src = SPELL_WORDS.filter(function (x) { return x.word === s.word; })[0] ||
 
@@ -3135,6 +3263,8 @@ function interleave(base, extra) {
   global.CONFUSE_PAIRS = CONFUSE_PAIRS;
 
   global.interleave = interleave;
+
+  global.capQuestions = capQuestions;   /* P3 20260913：capQuestions 与本块同作用域，跨 script 块需导出 */
 
   global.ALL_WORDS = ALL_WORDS;
 
@@ -5795,13 +5925,51 @@ function endPK(reason){
 
         { ratio: 0.18, baseLen: mixWord0.length + mixGk0.length + cqM.length });
 
-      var usedM = {}; cqM.concat(nhM).forEach(function (q) { usedM[String(q.word).toLowerCase()] = true; });
+      /* P1 修复 20260913：拼写类题优先保留 ——
+         形近题不得按词连坐剔除已生成的单词拼写题（实测同词拼写题被删至 1~2 题）。
+         仅对「为拼写题让位」的词做同词归一，其余词维持原设计，题量不变。 */
 
-      var mixBase = mixWord0.filter(function (q) { return !usedM[String(q.word || '').toLowerCase()]; })
+      var spellKeepM = {}; mixWord0.forEach(function (q) { if (q.type === 'spell') spellKeepM[String(q.word || '').toLowerCase()] = true; });
 
-        .concat(mixGk0);
+      var gaveWayM = {}; cqM.concat(nhM).forEach(function (q) { var kg = String(q.word || '').toLowerCase(); if (spellKeepM[kg]) gaveWayM[kg] = true; });
 
-      questions = interleave(mixBase, cqM.concat(nhM));
+      var cqMk = cqM.concat(nhM).filter(function (q) { return !spellKeepM[String(q.word || '').toLowerCase()]; });
+
+      var usedM = {}; cqMk.forEach(function (q) { usedM[String(q.word).toLowerCase()] = true; });
+
+      var keepM = {};
+
+      mixWord0.forEach(function (q) {
+
+        var kk = String(q.word || '').toLowerCase();
+
+        if (usedM[kk] || !gaveWayM[kk]) return;
+
+        if (!keepM[kk]) { keepM[kk] = q; return; }
+
+        if (keepM[kk].type !== 'spell' && q.type === 'spell') keepM[kk] = q;
+
+      });
+
+      var mixBase = mixWord0.filter(function (q) {
+
+        var km = String(q.word || '').toLowerCase();
+
+        if (usedM[km]) return false;
+
+        if (!gaveWayM[km]) return true;
+
+        return keepM[km] === q;
+
+      });
+
+      /* 高考语境填空不再固定拼在卷尾（P2 修复 20260913）：作为独立流参与穿插，与其余题型混排 */
+
+      questions = interleave(interleave(mixBase, mixGk0), cqMk);
+
+      /* P3 20260913：混合训练每组上限 25 题（课堂一局可控） */
+
+      questions = capQuestions(questions, 25);
 
     } else if (mode === 'review') {
 
@@ -5846,6 +6014,8 @@ function endPK(reason){
     state.idx = 0;
 
     state.correct = 0;
+    runAns = {};          // 新一局重置作答记录，防止旧局答对状态抵扣新局得分
+    answeredSet = {};     // 同上
 
     state.streak = 0;     // 新模式连对计数归零
 
@@ -6685,7 +6855,7 @@ function endPK(reason){
 
       var target = q.isSentence ? q.target : q.word;
 
-      var letters = String(target || '').split('');
+      var letters = String(target || '').replace(/[^A-Za-z]/g, '').split('');   /* P1 20260913 与 renderSlots 同口径 */
 
       var html = letters.map(function (ch, i) {
 
@@ -8467,7 +8637,7 @@ function endPK(reason){
 
       if (!q || q.type !== 'choose' || !q.options) return q;
       /* v4: 形近词辨析题已手工填 4 项,跳过 fitQ4 池补全 */
-      if (q.__confusable === true) return q;
+      if (q.__confusable === true || q.__nh === true) return q;   /* P2 20260913 */
 
       var corrects = [], wrongs = [];
 
